@@ -65,8 +65,8 @@
         const grid = document.getElementById('listings-grid');
         
         try {
-            // Bypassing the ID block by using a global text search for his name
-            const response = await fetch('https://api.aryeo.com/v1/listings?per_page=100&filter[search]=Michael', {
+            // Searching explicitly for "Harari"
+            const response = await fetch('https://api.aryeo.com/v1/listings?per_page=100&filter[search]=Harari', {
                 headers: { 'Authorization': `Bearer ${API_KEY}`, 'Accept': 'application/json' }
             });
 
@@ -78,7 +78,7 @@
             const result = await response.json();
 
             if (!result.data || result.data.length === 0) {
-                grid.innerHTML = `<div class="loading-text">No properties found matching the search term "Michael".</div>`;
+                grid.innerHTML = `<div class="loading-text">No properties found matching the search term "Harari".</div>`;
                 return;
             }
 
@@ -91,10 +91,30 @@
                 const addr = item.address?.unparsed_address || item.display_address || "Listing Details";
                 const img = item.thumbnail_url || item.main_image_url || FALLBACK_IMAGE;
 
+                // --- STATUS FORMATTING & COLOR LOGIC ---
+                let rawStatus = item.status || 'ACTIVE';
+                
+                // 1. Remove underscores and make it uppercase
+                let cleanStatus = rawStatus.replace(/_/g, ' ').toUpperCase(); 
+
+                // 2. Set default colors (Gold/Tan for things like 'DRAFT' or 'ACTIVE')
+                let statusColor = "var(--accent)";
+                let statusBg = "#fcf8f2"; 
+
+                // 3. Apply custom colors based on the status
+                if (cleanStatus === "FOR SALE" || cleanStatus === "FOR LEASE") {
+                    statusColor = "#155724"; // Dark Green text
+                    statusBg = "#d4edda";    // Light Green background
+                } else if (cleanStatus === "SOLD" || cleanStatus === "LEASED") {
+                    statusColor = "#721c24"; // Dark Red text
+                    statusBg = "#f8d7da";    // Light Red background
+                }
+
+                // Notice the inline styles added to the span below
                 card.innerHTML = `
                     <img src="${img}" onerror="this.onerror=null; this.src='${FALLBACK_IMAGE}';">
                     <div class="card-body">
-                        <span class="status-tag">${item.status || 'ACTIVE'}</span>
+                        <span class="status-tag" style="color: ${statusColor}; background-color: ${statusBg};">${cleanStatus}</span>
                         <h3>${addr}</h3>
                     </div>
                 `;
