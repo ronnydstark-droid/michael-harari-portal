@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Michael Harari | Property Portfolio</title>
+    <style>
+        :root { --brand: #1a1a1a; --accent: #c5a059; --bg: #fdfdfd; }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background: var(--bg); margin: 0; padding: 0; color: #333; }
+        
+        /* Header */
+        .agent-header { background: white; padding: 50px 20px; text-align: center; border-bottom: 1px solid #eee; margin-bottom: 40px; }
+        .initials { width: 75px; height: 75px; background: var(--brand); border-radius: 50%; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center; color: var(--accent); font-weight: bold; font-size: 1.6rem; border: 2px solid var(--accent); }
+        .agent-header h1 { margin: 0; font-size: 2rem; text-transform: uppercase; letter-spacing: 1px; }
+        .agent-header p { color: #888; margin: 10px 0 0; }
+
+        /* Grid Layout */
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 20px 40px; }
+        #listings-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 30px; }
+        
+        /* Listing Cards */
+        .card { background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); cursor: pointer; transition: 0.3s; border: 1px solid #eee; display: flex; flex-direction: column; }
+        .card:hover { transform: translateY(-6px); box-shadow: 0 12px 30px rgba(0,0,0,0.1); }
+        .card img { width: 100%; height: 220px; object-fit: cover; background: #e4e6eb; }
+        .card-body { padding: 20px; flex-grow: 1; }
+        .card-body h3 { margin: 0; font-size: 1.1rem; color: var(--brand); line-height: 1.4; }
+        .status-tag { display: inline-block; font-size: 0.75rem; font-weight: bold; color: var(--accent); text-transform: uppercase; margin-bottom: 10px; padding: 4px 8px; background: #fcf8f2; border-radius: 4px; }
+
+        /* Full-Screen Modal */
+        #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 2000; flex-direction: column; }
+        .modal-nav { padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; background: white; }
+        iframe { flex-grow: 1; border: none; width: 100%; height: 100%; }
+        .close-btn { font-size: 1.1rem; font-weight: bold; background: #f5f5f5; border: none; padding: 8px 16px; cursor: pointer; border-radius: 4px; transition: 0.2s; }
+        .close-btn:hover { background: #e0e0e0; }
+        
+        .loading-text { text-align: center; color: #666; font-size: 1.2rem; grid-column: 1 / -1; padding: 40px; }
+    </style>
+</head>
+<body>
+
+    <div class="agent-header">
+        <div class="initials">MH</div>
+        <h1>Michael Harari</h1>
+        <p>Featured Property Portfolio</p>
+    </div>
+
+    <div class="container">
+        <div id="listings-grid"><div class="loading-text">Loading properties...</div></div>
+    </div>
+
+    <div id="modal">
+        <div class="modal-nav">
+            <span id="modal-title" style="font-weight:bold; letter-spacing:1px;">PROPERTY TOUR</span>
+            <button class="close-btn" onclick="closeModal()">CLOSE ✕</button>
+        </div>
+        <iframe id="tour-frame"></iframe>
+    </div>
+
+<script>
+    const API_KEY = '150948|6aUlYYfPWd0yE2FFsY6thwKxjEuCrIK7spbzqkV5';
+    const MICHAEL_ID = '96581cf4-ced2-42b0-ba9c-ff70ac44ac6e'; 
+    
+    // Fallback Image (No network requests required)
+    const FALLBACK_IMAGE = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='400'%3E%3Crect width='100%25' height='100%25' fill='%23e4e6eb'/%3E%3Ctext x='50%25' y='50%25' font-family='sans-serif' font-size='20' fill='%23888' text-anchor='middle' dominant-baseline='middle'%3EProcessing Tour...%3C/text%3E%3C/svg%3E";
+
+    async function loadPortal() {
+        const grid = document.getElementById('listings-grid');
+        
+        try {
+            // Fetch up to 100 listings to capture the whole portfolio
+            const response = await fetch('https://api.aryeo.com/v1/listings?per_page=100', {
+                headers: { 'Authorization': `Bearer ${API_KEY}`, 'Accept': 'application/json' }
+            });
+
+            const result = await response.json();
+
+            // Filter for Michael's specific account
+            const matches = result.data.filter(item => {
+                return item.customer_id === MICHAEL_ID || 
+                       item.listing_agent_id === MICHAEL_ID ||
+                       item.owner_id === MICHAEL_ID;
+            });
+
+            if (matches.length === 0) {
+                grid.innerHTML = `<div class="loading-text">No active properties found for this agent.</div>`;
+                return;
+            }
+
+            grid.innerHTML = ''; 
+            
+            matches.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                
+                const addr = item.address?.unparsed_address || item.display_address || "Listing Details";
+                const img = item.thumbnail_url || item.main_image_url || FALLBACK_IMAGE;
+
+                card.innerHTML = `
+                    <img src="${img}" onerror="this.onerror=null; this.src='${FALLBACK_IMAGE}';">
+                    <div class="card-body">
+                        <span class="status-tag">${item.status || 'ACTIVE'}</span>
+                        <h3>${addr}</h3>
+                    </div>
+                `;
+
+                // Generate the Homes In Motion custom link
+                card.onclick = () => {
+                    const customUrl = `https://listings.homesinmotion.ca/v2/${item.id}`;
+                    document.getElementById('modal-title').innerText = addr.toUpperCase();
+                    document.getElementById('tour-frame').src = customUrl;
+                    document.getElementById('modal').style.display = 'flex';
+                    document.body.style.overflow = 'hidden'; 
+                };
+                
+                grid.appendChild(card);
+            });
+
+        } catch (err) {
+            grid.innerHTML = `<div class="loading-text" style="color:red;">Error connecting to Aryeo: ${err.message}</div>`;
+        }
+    }
+
+    function closeModal() {
+        document.getElementById('modal').style.display = 'none';
+        document.getElementById('tour-frame').src = '';
+        document.body.style.overflow = 'auto'; 
+    }
+
+    loadPortal();
+</script>
+
+</body>
+</html>
